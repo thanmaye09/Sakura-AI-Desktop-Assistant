@@ -1,0 +1,96 @@
+"""Sakura AI Desktop Assistant — animated Tkinter productivity starter.
+
+Run: python app.py
+Reminders are checked only while this application is running.
+"""
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+import queue
+import random
+import threading
+import tkinter as tk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+import webbrowser
+
+from dotenv import load_dotenv
+
+from sakura.email_tools import mailto_url
+from sakura.lookup import ask_openai, google_search_url
+from sakura.reminders import ReminderStore
+from sakura.speech import speak_text
+
+BASE = Path(__file__).resolve().parent
+load_dotenv(BASE / ".env")
+
+BACKGROUND = "#fff6fa"
+PINK = "#de6093"
+DEEP = "#753b5b"
+PALE = "#ffdce9"
+
+
+class SakuraApp:
+    def __init__(self, root: tk.Tk):
+        self.root = root
+        self.root.title("🌸 Sakura AI — Desktop Assistant")
+        self.root.geometry("830x660")
+        self.root.minsize(700, 550)
+        self.root.configure(bg=BACKGROUND)
+
+        try:
+            self.reminder_store = ReminderStore(BASE / "data" / "reminders.json")
+        except (ValueError, OSError) as exc:
+            messagebox.showerror("Reminder storage error", str(exc))
+            raise
+
+        self.messages: queue.Queue[tuple[str, str]] = queue.Queue()
+        self.petals = [
+            {"x": random.randrange(800), "y": random.randrange(120),
+             "speed": random.uniform(0.4, 1.5), "size": random.randrange(3, 8)}
+            for _ in range(25)
+        ]
+        self._build_ui()
+        self._refresh_reminders()
+        self._animate_petals()
+        self._check_reminders()
+        self._poll_results()
+
+    def _build_ui(self) -> None:
+        header = tk.Canvas(self.root, height=148, bg="#ffebf2", highlightthickness=0)
+        header.pack(fill="x")
+        self.header = header
+        header.create_text(23, 45, anchor="w", text="🌸  SAKURA AI", fill=DEEP,
+                           font=("Segoe UI", 27, "bold"), tags="static")
+        header.create_text(26, 91, anchor="w", text="Your animated desktop productivity companion",
+                           fill="#975579", font=("Segoe UI", 12), tags="static")
+
+        style = ttk.Style()
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+        style.configure("TNotebook", background=BACKGROUND)
+        style.configure("TNotebook.Tab", padding=(15, 10), font=("Segoe UI", 10))
+        style.configure("TFrame", background=BACKGROUND)
+        style.configure("TLabel", background=BACKGROUND, foreground=DEEP,
+                        font=("Segoe UI", 11))
+        style.configure("TButton", padding=8, font=("Segoe UI", 10))
+
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill="both", expand=True, padx=20, pady=(15, 10))
+        reminder_tab = ttk.Frame(self.notebook)
+        email_tab = ttk.Frame(self.notebook)
+        reader_tab = ttk.Frame(self.notebook)
+        lookup_tab = ttk.Frame(self.notebook)
+        self.notebook.add(reminder_tab, text="⏰ Reminders")
+        self.notebook.add(email_tab, text="✉ Email drafts")
+        self.notebook.add(reader_tab, text="🔊 Text reader")
+        self.notebook.add(lookup_tab, text="🔎 Search & AI")
+
+        self._reminder_tab(reminder_tab)
+        self._email_tab(email_tab)
+        self._reader_tab(reader_tab)
+        self._lookup_tab(lookup_tab)
+
+        self.status = tk.StringVar(value="Ready • Local reminders only run while Sakura AI is open")
+        tk.Label(self.root, textvariable=self.status, bg=BACKGROUND, fg="#795971",
+                 font=("Segoe UI", 9), anchor="w").pack(fill="x", padx=22, pady=(0, 10))
