@@ -1,0 +1,24 @@
+                             ┌───────────────────────┐
+                             │ Tkinter desktop app   │
+                             │ animated petals / UI  │
+                             └───────────┬───────────┘
+                                         │
+          ┌──────────────────┬───────────┼────────────┬───────────────────┐
+          ▼                  ▼           ▼            ▼                   ▼
+    Reminders           Email drafts  Text reader   Search links      Optional AI
+    JSON storage        mailto:      pyttsx3       Google/ChatGPT     OpenAI API
+          │                  │           │            │                   │
+    Tkinter polling    Mail client  OS speech     Web browser      API key in .env
+
+Important boundaries
+- Reminders appear only while the app is running. They persist to data/reminders.json, so the next launch can detect overdue reminders.
+- Email drafting invokes the computer's default email application; it does not access inboxes or send mail automatically.
+- Google lookup opens a search results page; ChatGPT opens its website.
+- Optional direct AI answers need an OpenAI API key and may incur usage charges.
+- No microphone, desktop-control permissions, or system-wide automation is implemented in this starter.
+Future enhancements
+- System tray and OS notifications for background reminders
+- OAuth-based Gmail integration with explicit scopes and confirmation before sending
+- Voice recognition, multilingual speech and customizable character sprites
+- Command parser for safe desktop actions with permission boundaries
+- Packaging as a Windows executable using PyInstaller
